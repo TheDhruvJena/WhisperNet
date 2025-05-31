@@ -1,5 +1,7 @@
 from whispernet.experiments import run_experiment
-import whispernet
+from whispernet.config import model
+import matplotlib.pyplot as plt 
+
 
 dataset ={
   "storytelling": [
@@ -111,11 +113,43 @@ dataset ={
 }
 
 
+results_list = []  # Collect all results
+
 for task in dataset:
     print(f"\n=== Task: {task} ===")
     for method in [None, 'voting', 'backcheck']:
         print(f"\n--- Correction: {method or 'baseline'} ---")
-        results = run_experiment(dataset[task], task, correction=method)
-        for r in results:
-            print("Chain:", " → ".join(r['chain']))
-            print("Semantic similarity:", round(r['semantic_similarity'], 3))
+        for model_name in model:
+            print(f"\n>>> Model: {model_name}")
+            results = run_experiment(dataset[task], task, correction=method, model_name=model_name)
+            for r in results:
+                print("Chain:", " → ".join(r['chain']))
+                print("Semantic similarity:", round(r['semantic_similarity'], 3))
+                # Collect data for plotting
+                results_list.append({
+                    'task': task,
+                    'model': model_name,
+                    'correction': method or 'baseline',
+                    'semantic_similarity': r['semantic_similarity']
+                })
+
+# Print the collected list
+print("\nCollected semantic similarities:")
+for entry in results_list:
+    print(entry)
+
+
+# Save results to CSV
+import pandas as pd
+df = pd.DataFrame(results_list)
+df.to_csv("semantic_similarities.csv", index=False)
+
+# Group by model and correction, average semantic similarity
+grouped = df.groupby(['model', 'correction'])['semantic_similarity'].mean().unstack()
+
+grouped.plot(kind='bar')
+plt.ylabel('Average Semantic Similarity')
+plt.title('Semantic Similarity by Model and Correction')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
